@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Champagne Cuvée Matching Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF7;
+            color: #4A4A4A;
+        }
+        .title-font {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        .card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+            cursor: pointer;
+            border: 1px solid #EAEAEA;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 4rem;
+            padding: 0.75rem;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
+        .card.selected {
+            transform: translateY(-2px);
+            border-color: #C0A062;
+            background-color: #FFFBEB;
+            box-shadow: 0 0 0 3px rgba(192, 160, 98, 0.3);
+        }
+        .card.matched {
+            transform: scale(0.95);
+            opacity: 0.5;
+            cursor: default;
+            background-color: #F0FFF4;
+            border-color: #A0D9B1;
+        }
+         .card.incorrect {
+            animation: shake 0.5s;
+            background-color: #FFF1F1;
+            border-color: #E57373;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .btn-primary {
+            background-color: #A67B5B;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #8E6549;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="game-container" class="w-full max-w-5xl mx-auto">
+        <header class="text-center mb-6 md:mb-8">
+            <h1 id="game-title" class="text-4xl md:text-5xl font-bold title-font text-gray-800">Champagne Challenge</h1>
+            <p id="game-subtitle" class="text-lg text-gray-500 mt-2">Match the Prestige Cuvée to the House</p>
+        </header>
+
+        <div id="stats" class="flex justify-around items-center mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div>
+                <span class="text-sm font-medium text-gray-500">SCORE</span>
+                <p id="score" class="text-2xl font-bold text-gray-800">0</p>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-500">ROUND</span>
+                <p id="round" class="text-2xl font-bold text-gray-800">1</p>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-500">MATCHES</span>
+                <p id="matches-count" class="text-2xl font-bold text-gray-800">0 / 5</p>
+            </div>
+        </div>
+        
+        <div id="message-center" class="text-center h-8 mb-4">
+             <p id="message" class="text-xl font-semibold title-font transition-opacity duration-300"></p>
+        </div>
+
+        <main id="game-board" class="grid grid-cols-2 gap-6 md:gap-8">
+            <div id="left-column" class="space-y-3">
+                <!-- Cards will be injected here -->
+            </div>
+            <div id="right-column" class="space-y-3">
+                <!-- Cards will be injected here -->
+            </div>
+        </main>
+
+        <footer id="game-controls" class="text-center mt-8 hidden">
+            <button id="next-round-btn" class="btn-primary font-bold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all">Next Round</button>
+        </footer>
+    </div>
+
+    <!-- Bonus Round Modal -->
+    <div id="bonus-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center transform transition-all scale-95 opacity-0" id="modal-content">
+            <h2 id="modal-title" class="text-3xl font-bold title-font mb-3 text-gray-800">Bonus Round!</h2>
+            <p id="modal-text" class="text-gray-600 mb-8">Get ready for a new challenge. These are worth more points!</p>
+            <button id="start-bonus-btn" class="btn-primary font-bold py-3 px-10 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Start Round</button>
+        </div>
+    </div>
+    
+    <!-- Final Score Modal -->
+    <div id="final-score-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center transform transition-all scale-95 opacity-0" id="final-modal-content">
+            <h2 class="text-3xl font-bold title-font mb-3 text-gray-800">Game Over!</h2>
+            <p class="text-gray-600 mb-4">Your final score is:</p>
+            <p class="text-5xl font-bold text-gray-800 mb-2"><span id="final-score">0</span> / <span id="max-score">0</span></p>
+            <p class="text-xl font-semibold title-font text-blue-600 mb-6" id="final-percentage"></p>
+            <p id="final-message" class="text-lg text-gray-700 mb-8"></p>
+            <button id="play-again-btn" class="btn-primary font-bold py-3 px-10 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Play Again</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DATA SETUP ---
+            const prestigeCuveesData = [
+                { producer: "Ayala", cuvee: "Cuvée Perle d'Ayala" },
+                { producer: "Billecart-Salmon", cuvee: "Nicolas François Billecart" }, { producer: "Billecart-Salmon", cuvee: "Elisabeth Salmon Rosé" }, { producer: "Billecart-Salmon", cuvee: "Louis Salmon Blanc de Blancs" },
+                { producer: "Bollinger", cuvee: "La Grande Année" }, { producer: "Bollinger", cuvee: "R.D." }, { producer: "Bollinger", cuvee: "Vieilles Vignes Françaises" },
+                { producer: "Boizel", cuvee: "Joyau de France" },
+                { producer: "Canard Duchêne", cuvee: "Charles VII" },
+                { producer: "Comtes Audoin de Dampierre", cuvee: "Prestige" },
+                { producer: "De Castellane", cuvee: "Cuvée Commodore" },
+                { producer: "De Meric", cuvee: "Catherine de Médicis" },
+                { producer: "De Venoge", cuvee: "Grand Vin des Princes" }, { producer: "De Venoge", cuvee: "Louis XV" },
+                { producer: "Delamotte", cuvee: "Nicolas Louis Delamotte" },
+                { producer: "Deutz", cuvee: "Cuvée William Deutz" }, { producer: "Deutz", cuvee: "Amour de Deutz" },
+                { producer: "Diebolt-Vallois", cuvee: "Fleur de Passion" },
+                { producer: "Drappier", cuvee: "Charles de Gaulle" },
+                { producer: "Duval-Leroy", cuvee: "Femme de Champagne" },
+                { producer: "Gosset", cuvee: "Celebris" },
+                { producer: "Alfred Gratien", cuvee: "Cuvée Paradis" },
+                { producer: "Charles Heidsieck", cuvee: "Champagne Charlie" }, { producer: "Charles Heidsieck", cuvee: "Blanc des Millénaires" },
+                { producer: "Henriot", cuvee: "Cuvée des Enchanteleurs" }, { producer: "Henriot", cuvee: "Hemera" },
+                { producer: "Jacquesson", cuvee: "Grand Vin Signature" },
+                { producer: "Lanson", cuvee: "Noble Cuvée" },
+                { producer: "Laurent-Perrier", cuvee: "Grand Siècle" }, { producer: "Laurent-Perrier", cuvee: "Alexandra" },
+                { producer: "AR Lenoble", cuvee: "Cuvée Les Aventures" }, { producer: "AR Lenoble", cuvee: "Cuvée Gentilhomme" },
+                { producer: "Moët et Chandon", cuvee: "Dom Pérignon" }, { producer: "Moët et Chandon", cuvee: "Dom Pérignon Plénitude 2 (P2)" }, { producer: "Moët et Chandon", cuvee: "Dom Pérignon Plénitude 3 (P3)" },
+                { producer: "G.H. Mumm", cuvee: "Cuvée R. Lalou" },
+                { producer: "Bruno Paillard", cuvee: "Nec-Plus-Ultra" },
+                { producer: "Joseph Perrier", cuvee: "Cuvée Joséphine" },
+                { producer: "Perrier-Jouët", cuvee: "Belle Époque/Fleur de Champagne (USA)" },
+                { producer: "Piper-Heidsieck", cuvee: "Rare" },
+                { producer: "Ployez-Jacquemart", cuvee: "Liesse d'Harbonville" },
+                { producer: "Pol Roger", cuvee: "Cuvée Sir Winston Churchill" },
+                { producer: "Pommery", cuvee: "Cuvée Louise" },
+                { producer: "Louis Roederer", cuvee: "Cristal" },
+                { producer: "Ruinart", cuvee: "Dom Ruinart" },
+                { producer: "Taittinger", cuvee: "Comtes de Champagne" }, { producer: "Taittinger", cuvee: "Taittinger Collection" },
+                { producer: "Veuve Clicquot-Ponsardin", cuvee: "La Grande Dame" },
+                { producer: "Henri Billiot", cuvee: "Cuvée Laetitia" }, { producer: "Henri Billiot", cuvee: "Cuvée Julie" },
+                { producer: "Bonnaire", cuvee: "Cuvée Prestige" },
+                { producer: "Chartogne-Taillet", cuvee: "Fiacre" },
+                { producer: "Hubert Dauvergne", cuvee: "Fine Fleur de Bouzy" },
+                { producer: "Paul Déthune", cuvee: "Brut Prestige" },
+                { producer: "Guy Larmandier", cuvee: "Cramant Grand Cru Cuvée Prestige" },
+                { producer: "Jacques Selosse", cuvee: "Substance" },
+                { producer: "Nicolas Feuillatte", cuvee: "Palmes d'Or" },
+                { producer: "Jacquart", cuvee: "Cuvée Alpha" },
+                { producer: "Mailly Grand Cru", cuvee: "Les Échansons" }, { producer: "Mailly Grand Cru", cuvee: "L'Intemporelle" },
+                { producer: "Vilmart & Cie", cuvee: "Coeur de Cuvée" },
+            ];
+
+            const singleVineyardData = [
+                { producer: "Agrapart", cuvee: "Vénus" },
+                { producer: "Billecart-Salmon", cuvee: "Clos St-Hilaire" },
+                { producer: "Bollinger", cuvee: "La Côte aux Enfants" },
+                { producer: "Cattier", cuvee: "Clos du Moulin" },
+                { producer: "Chartogne-Taillet", cuvee: "Les Barres" }, { producer: "Chartogne-Taillet", cuvee: "Les Orizeaux" }, { producer: "Chartogne-Taillet", cuvee: "Les Alliées" },
+                { producer: "Claude Cazals", cuvee: "Clos Cazals" },
+                { producer: "Drappier", cuvee: "Grande Sendrée" },
+                { producer: "Duval-Leroy", cuvee: "Clos des Bouveries" },
+                { producer: "Egly-Ouriet", cuvee: "Les Crayères" },
+                { producer: "Jacquesson", cuvee: "Dizy Corne Bautray" }, { producer: "Jacquesson", cuvee: "Aÿ Vauzelle Terme" }, { producer: "Jacquesson", cuvee: "Dizy Terres Rouges Rosé" }, { producer: "Jacquesson", cuvee: "Avize Champ Cain" },
+                { producer: "Krug", cuvee: "Clos du Mesnil" }, { producer: "Krug", cuvee: "Clos d'Ambonnay" },
+                { producer: "Larmandier-Bernier", cuvee: "Vieille Vigne de Levant" }, { producer: "Larmandier-Bernier", cuvee: "Terre de Vertus" },
+                { producer: "Jean Milan", cuvee: "Terres de Noël" },
+                { producer: "Pierre Peters", cuvee: "Cuvée Spéciale les Chétillons" },
+                { producer: "Philipponnat", cuvee: "Clos des Goisses" }, { producer: "Philipponnat", cuvee: "Clos des Goisses Juste Rosé" },
+                { producer: "Taittinger", cuvee: "Les Folies de la Marquetterie" },
+                { producer: "Tarlant", cuvee: "La Vigne d'Or" }, { producer: "Tarlant", cuvee: "La Vigne d'Antan" }, { producer: "Tarlant", cuvee: "La Vigne Royale" }, { producer: "Tarlant", cuvee: "Cuvée Louis" },
+                { producer: "Veuve Fourny", cuvee: "Clos Faubourg Notre Dame" },
+                { producer: "Benoît Lahaye", cuvee: "Le Jardin de la Grosse Pierre" },
+                { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "Les Ursules (pn)" }, { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "La Bolorée (pb)" }, { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "Côte de Béchalin (pn)" }, { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "Val Vilaine (pn)" }, { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "Haute-Lemblée (ch)" }, { producer: "Cédric Bouchard Roses de Jeanne", cuvee: "Creux d’Enfer Rosé (pn)" },
+                { producer: "Georges Laval", cuvee: "Les Chênes" }, { producer: "Georges Laval", cuvee: "Les Hautes Chèvres" }, { producer: "Georges Laval", cuvee: "Les Longues Violes" },
+                { producer: "Jérôme Prévost (La Closerie)", cuvee: "Les Béguines" },
+                { producer: "Jacques Selosse", cuvee: "Les Carelles" }, { producer: "Jacques Selosse", cuvee: "Chemin de Châlons" }, { producer: "Jacques Selosse", cuvee: "Les Chantereines" }, { producer: "Jacques Selosse", cuvee: "Le Bout du Clos" }, { producer: "Jacques Selosse", cuvee: "La Côte Faron" }, { producer: "Jacques Selosse", cuvee: "Sous le Mont" },
+                { producer: "Savart", cuvee: "Le Mont Benoît" }, { producer: "Savart", cuvee: "Les Monts Chrétiens" },
+                { producer: "Ulysse Collin", cuvee: "Les Pierrières" }, { producer: "Ulysse Collin", cuvee: "Les Maillons" }, { producer: "Ulysse Collin", cuvee: "Les Roises" },
+                { producer: "Vilmart & Cie", cuvee: "Blanches Voies" },
+            ];
+            
+            const coteauxChampenoisData = [
+                { producer: "Bérêche", cuvee: "Les Monts Fournis (Blanc & Rouge)", variety: "Chardonnay or Pinot Noir", village: "Ludes" },
+                { producer: "Bérêche", cuvee: "Les Montées", variety: "Pinot Noir", village: "Ormes" },
+                { producer: "Charles Heidsieck", cuvee: "Coteaux Champenois", variety: "Meunier", village: "Ambonnay" },
+                { producer: "David Leclapart", cuvee: "Trépail Blanc", variety: "Chardonnay", village: "Trépail" },
+                { producer: "Egly-Ouriet", cuvee: "Cuvée des Grands Côtés", variety: "Pinot Noir", village: "Ambonnay" },
+                { producer: "Gonet Medeville", cuvee: "Cuvée Athenais", variety: "Pinot Noir", village: "Ambonnay" },
+                { producer: "Marguet", cuvee: "Coteaux Champenois", variety: "Chardonnay", village: "Ambonnay" },
+                { producer: "Marguet", cuvee: "Coteaux Champenois", variety: "Pinot Noir", village: "Ambonnay" },
+                { producer: "Paul Bara", cuvee: "Bouzy Rouge", variety: "Pinot Noir", village: "Bouzy" },
+                { producer: "Pierre Paillard", cuvee: "Les Mignottes", variety: "Pinot Noir", village: "Bouzy" },
+                { producer: "Roger Coulon", cuvee: "Les Champs Chevalier", variety: "Pinot Noir", village: "Vrigny" },
+                { producer: "Roger Coulon", cuvee: "Le Mont Moine", variety: "Meunier", village: "Vrigny" },
+                { producer: "Bollinger", cuvee: "La Côte Aux Enfants", variety: "Pinot Noir", village: "Aÿ" },
+                { producer: "Benoit Dehu", cuvee: "La Rue des Noyers", variety: "Meunier", village: "Fossy" },
+                { producer: "Henri Giraud", cuvee: "Cuvée des Froides Terres", variety: "Pinot Noir", village: "Aÿ" },
+                { producer: "Louis Roederer", cuvee: "Hommage a Camille (Blanc & Rouge)", variety: "Chardonnay or Pinot Noir", village: "Mareuil-sur-Aÿ" },
+                { producer: "Philipponnat", cuvee: "Moreuil Rouge", variety: "Pinot Noir", village: "Mareuil-sur-Aÿ" },
+                { producer: "Tarlant", cuvee: "Grand Picou", variety: "Pinot Noir", village: "Oeuilly" },
+                { producer: "Doyard", cuvee: "En Vieux Fombrés", variety: "Chardonnay", village: "Vertus" },
+                { producer: "Larmandier - Bernier", cuvee: "Cramant Nature", variety: "Chardonnay", village: "Cramant" },
+                { producer: "Larmandier - Bernier", cuvee: "Vertus Rouge", variety: "Pinot Noir", village: "Vertus" },
+                { producer: "Robert Moncuit", cuvee: "Coteaux Champenois", variety: "Chardonnay", village: "Le Mesnil Sur Oger" },
+                { producer: "Drappier", cuvee: "Trop m'en Faut", variety: "Pinot Gris", village: "Urville" },
+                { producer: "Etienne Calsac", cuvee: "Photogramme", variety: "Petit Meslier", village: "Montgenost" },
+                { producer: "Jacques Lassaigne", cuvee: "Haut Revers du Chutat", variety: "Chardonnay", village: "Montgueux" },
+                { producer: "Jerome Coessens", cuvee: "Vendange Entiere", variety: "Pinot Noir", village: "Ville-sur-Arce" },
+                { producer: "Marie Courtin", cuvee: "Le Blanc du Tremble", variety: "Pinot Noir", village: "Polisot" },
+            ];
+
+            const grandCruData = [
+                { village: "Ambonnay", region: "Montagne de Reims" }, { village: "Bouzy", region: "Montagne de Reims" }, { village: "Verzenay", region: "Montagne de Reims" }, { village: "Verzy", region: "Montagne de Reims" }, { village: "Mailly-Champagne", region: "Montagne de Reims" }, { village: "Beaumont-sur-Vesle", region: "Montagne de Reims" }, { village: "Sillery", region: "Montagne de Reims" }, { village: "Puisieulx", region: "Montagne de Reims" }, { village: "Louvois", region: "Montagne de Reims" },
+                { village: "Aÿ", region: "Vallée de la Marne" }, { village: "Tours-sur-Marne", region: "Montagne de Reims" },
+                { village: "Chouilly", region: "Côte des Blancs" }, { village: "Oiry", region: "Côte des Blancs" }, { village: "Cramant", region: "Côte des Blancs" }, { village: "Avize", region: "Côte des Blancs" }, { village: "Oger", region: "Côte des Blancs" }, { village: "Le Mesnil-sur-Oger", region: "Côte des Blancs" },
+            ];
+
+            const premierCruData = [
+                { village: "Bezannes", region: "Montagne de Reims" }, { village: "Chamery", region: "Montagne de Reims" }, { village: "Cormontreuil", region: "Montagne de Reims" }, { village: "Coulommes-la-Montagne", region: "Montagne de Reims" }, { village: "Ecueil", region: "Montagne de Reims" }, { village: "Jouy-lès-Reims", region: "Montagne de Reims" }, { village: "Les Mesneux", region: "Montagne de Reims" }, { village: "Pargny-lès-Reims", region: "Montagne de Reims" }, { village: "Sacy", region: "Montagne de Reims" }, { village: "Sermiers", region: "Montagne de Reims" }, { village: "Taissy", region: "Montagne de Reims" }, { village: "Trois-Puits", region: "Montagne de Reims" }, { village: "Villedommange", region: "Montagne de Reims" }, { village: "Villers-Allerand", region: "Montagne de Reims" }, { village: "Villers-aux-Noeuds", region: "Montagne de Reims" }, { village: "Vrigny", region: "Montagne de Reims" }, { village: "Billy-le-Grand", region: "Montagne de Reims" }, { village: "Trépail", region: "Montagne de Reims" }, { village: "Vaudemange", region: "Montagne de Reims" }, { village: "Chigny-les-Roses", region: "Montagne de Reims" }, { village: "Ludes", region: "Montagne de Reims" }, { village: "Rilly-la-Montagne", region: "Montagne de Reims" }, { village: "Tauxières-Mutry", region: "Montagne de Reims" }, { village: "Villers-Marmery", region: "Montagne de Reims" },
+                { village: "Avenay-Val-d'Or", region: "Vallée de la Marne" }, { village: "Bisseuil", region: "Vallée de la Marne" }, { village: "Champillon", region: "Vallée de la Marne" }, { village: "Cumières", region: "Vallée de la Marne" }, { village: "Dizy", region: "Vallée de la Marne" }, { village: "Hautvillers", region: "Vallée de la Marne" }, { village: "Mareuil-sur-Aÿ", region: "Vallée de la Marne" }, { village: "Mutigny", region: "Vallée de la Marne" },
+                { village: "Coligny (Val-des-Marais)", region: "Côte des Blancs" }, { village: "Cuis", region: "Côte des Blancs" }, { village: "Etrechy", region: "Côte des Blancs" }, { village: "Grauves", region: "Côte des Blancs" }, { village: "Vertus", region: "Côte des Blancs" },
+                { village: "Bethon", region: "Côte de Sézanne" }, { village: "Villeneuve-Renonville-Chevigny", region: "Côte de Sézanne" },
+            ];
+
+            // --- GAME STATE ---
+            let state = {
+                score: 0,
+                round: 1,
+                matchedPairs: 0,
+                matchesPerRound: 5,
+                maxScorePossible: 0,
+                currentRoundData: [],
+                selectedLeft: null,
+                selectedRight: null,
+                currentRoundType: 'prestige', // prestige, grandCru, singleVineyard, premierCru, coteaux
+                isChecking: false,
+                totalRounds: 20,
+            };
+
+            // --- DOM ELEMENTS ---
+            const gameTitleEl = document.getElementById('game-title');
+            const gameSubtitleEl = document.getElementById('game-subtitle');
+            const scoreEl = document.getElementById('score');
+            const roundEl = document.getElementById('round');
+            const matchesCountEl = document.getElementById('matches-count');
+            const leftColumn = document.getElementById('left-column');
+            const rightColumn = document.getElementById('right-column');
+            const messageEl = document.getElementById('message');
+            const gameControls = document.getElementById('game-controls');
+            const nextRoundBtn = document.getElementById('next-round-btn');
+            const finalScoreModal = document.getElementById('final-score-modal');
+            const finalModalContent = document.getElementById('final-modal-content');
+            const finalScoreEl = document.getElementById('final-score');
+            const maxScoreEl = document.getElementById('max-score');
+            const finalPercentageEl = document.getElementById('final-percentage');
+            const finalMessageEl = document.getElementById('final-message');
+            const playAgainBtn = document.getElementById('play-again-btn');
+            const bonusModal = document.getElementById('bonus-modal');
+            const modalContent = document.getElementById('modal-content');
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
+            const startBonusBtn = document.getElementById('start-bonus-btn');
+
+            // --- HELPER FUNCTIONS ---
+            const shuffleArray = (array) => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            };
+
+            const showMessage = (text, points, persistent = false) => {
+                let color = '#4A4A4A'; // Default color
+                let messageText = text;
+
+                if (points > 0) {
+                    color = '#2E7D32'; // Green for correct
+                    messageText = `+${points}! ${text}`;
+                } else if (points < 0) {
+                    color = '#C62828'; // Red for incorrect
+                    messageText = `${points}! ${text}`;
+                }
+                
+                messageEl.textContent = messageText;
+                messageEl.style.opacity = 1;
+                messageEl.style.color = color;
+                
+                if (!persistent) {
+                    setTimeout(() => {
+                        messageEl.style.opacity = 0;
+                    }, 1500);
+                }
+            };
+
+            const getUniqueItems = (sourceArray, count, key = 'producer') => {
+                const shuffled = shuffleArray([...sourceArray]);
+                const result = [];
+                const usedKeys = new Set();
+                for (const item of shuffled) {
+                    if (!usedKeys.has(item[key])) {
+                        result.push(item);
+                        usedKeys.add(item[key]);
+                    }
+                    if (result.length === count) {
+                        break;
+                    }
+                }
+                return result;
+            };
+
+            const getUniqueCoteauxItems = (sourceArray, count) => {
+                const shuffled = shuffleArray([...sourceArray]);
+                const result = [];
+                const usedProducers = new Set();
+                const usedCuveeVariety = new Set();
+
+                for (const item of shuffled) {
+                    const cuveeVarietyKey = `${item.cuvee}|${item.variety}`;
+                    if (!usedProducers.has(item.producer) && !usedCuveeVariety.has(cuveeVarietyKey)) {
+                        result.push(item);
+                        usedProducers.add(item.producer);
+                        usedCuveeVariety.add(cuveeVarietyKey);
+                    }
+                    if (result.length === count) {
+                        break;
+                    }
+                }
+                return result;
+            };
+
+            const getStructuredRegionItems = (sourceData) => {
+                const byRegion = {
+                    'Montagne de Reims': shuffleArray(sourceData.filter(v => v.region === 'Montagne de Reims')),
+                    'Vallée de la Marne': shuffleArray(sourceData.filter(v => v.region === 'Vallée de la Marne')),
+                    'Côte des Blancs': shuffleArray(sourceData.filter(v => v.region === 'Côte des Blancs'))
+                };
+
+                const result = [
+                    ...byRegion['Montagne de Reims'].slice(0, 2),
+                    ...byRegion['Vallée de la Marne'].slice(0, 2),
+                    ...byRegion['Côte des Blancs'].slice(0, 2)
+                ];
+
+                return shuffleArray(result);
+            };
+
+            const getSkewedGrandCruItems = () => {
+                const byRegion = {
+                    'Montagne de Reims': shuffleArray(grandCruData.filter(v => v.region === 'Montagne de Reims')),
+                    'Vallée de la Marne': shuffleArray(grandCruData.filter(v => v.region === 'Vallée de la Marne')),
+                    'Côte des Blancs': shuffleArray(grandCruData.filter(v => v.region === 'Côte des Blancs'))
+                };
+
+                let result = [];
+                const includeVdm = Math.random() > 0.33; // ~67% chance to include VdM
+
+                if (includeVdm && byRegion['Vallée de la Marne'].length > 0) {
+                    // Get one from VdM (either Aÿ or Tours-sur-Marne)
+                    result.push(byRegion['Vallée de la Marne'][0]);
+                    
+                    const mdrGets3 = Math.random() > 0.5;
+                    const mdrCount = mdrGets3 ? 3 : 2;
+                    const cdbCount = mdrGets3 ? 2 : 3;
+                    result.push(...byRegion['Montagne de Reims'].slice(0, mdrCount));
+                    result.push(...byRegion['Côte des Blancs'].slice(0, cdbCount));
+                } else {
+                    result.push(...byRegion['Montagne de Reims'].slice(0, 3));
+                    result.push(...byRegion['Côte des Blancs'].slice(0, 3));
+                }
+                return shuffleArray(result);
+            };
+
+            // --- GAME LOGIC ---
+            function startRound() {
+                // Reset common state
+                state.matchedPairs = 0;
+                state.isChecking = false;
+                gameControls.classList.add('hidden');
+                nextRoundBtn.classList.remove('hidden');
+                messageEl.textContent = '';
+                
+                // Determine round type and show modal if bonus
+                if (state.round === 5) {
+                    state.currentRoundType = 'grandCru';
+                    state.matchesPerRound = 6;
+                    modalTitle.textContent = 'Bonus Round!';
+                    modalText.textContent = 'Match the Grand Cru to the Region (6 Matches). These are worth more points!';
+                    bonusModal.classList.remove('hidden');
+                    setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                } else if (state.round === 10) {
+                    state.currentRoundType = 'singleVineyard';
+                    state.matchesPerRound = 5;
+                    modalTitle.textContent = 'Bonus Round!';
+                    modalText.textContent = 'Noteworthy Single Vineyard Cuvées. These are worth more points!';
+                    bonusModal.classList.remove('hidden');
+                    setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                } else if (state.round === 15) {
+                    state.currentRoundType = 'premierCru';
+                    state.matchesPerRound = 6;
+                    modalTitle.textContent = 'Bonus Round!';
+                    modalText.textContent = 'Match the Premier Cru to the Region (6 Matches). These are worth more points!';
+                    bonusModal.classList.remove('hidden');
+                    setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                } else if (state.round === 20) {
+                    state.currentRoundType = 'coteaux';
+                    state.matchesPerRound = 5;
+                    modalTitle.textContent = 'Bonus Round!';
+                    modalText.textContent = 'Coteaux Champenois Cuvées. These are worth more points!';
+                    bonusModal.classList.remove('hidden');
+                    setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                } else {
+                    state.currentRoundType = 'prestige';
+                    state.matchesPerRound = 5;
+                    prepareAndRenderRound();
+                }
+            }
+
+            function prepareAndRenderRound() {
+                let sourceData;
+                let isBonus = false;
+                switch (state.currentRoundType) {
+                    case 'grandCru':
+                        gameTitleEl.textContent = "Bonus Round";
+                        gameSubtitleEl.textContent = "Match the Grand Cru to the Region";
+                        sourceData = getSkewedGrandCruItems();
+                        isBonus = true;
+                        break;
+                    case 'singleVineyard':
+                        gameTitleEl.textContent = "Bonus Round";
+                        gameSubtitleEl.textContent = "Noteworthy Single Vineyard Cuvées";
+                        sourceData = getUniqueItems(singleVineyardData, 5);
+                        isBonus = true;
+                        break;
+                    case 'premierCru':
+                        gameTitleEl.textContent = "Bonus Round";
+                        gameSubtitleEl.textContent = "Match the Premier Cru to the Region";
+                        sourceData = getStructuredRegionItems(premierCruData);
+                        isBonus = true;
+                        break;
+                    case 'coteaux':
+                        gameTitleEl.textContent = "Bonus Round";
+                        gameSubtitleEl.textContent = "Coteaux Champenois Cuvées";
+                        sourceData = getUniqueCoteauxItems(coteauxChampenoisData, 5);
+                        isBonus = true;
+                        break;
+                    default: // prestige
+                        gameTitleEl.textContent = "Champagne Challenge";
+                        gameSubtitleEl.textContent = "Match the Prestige Cuvée to the House";
+                        sourceData = getUniqueItems(prestigeCuveesData, 5);
+                        break;
+                }
+                
+                // Update max possible score
+                const roundMaxPoints = state.matchesPerRound * (isBonus ? 2 : 1);
+                state.maxScorePossible += roundMaxPoints;
+
+                state.currentRoundData = sourceData;
+                renderCards(state.currentRoundData);
+                updateStats();
+            }
+
+            function renderCards(data) {
+                leftColumn.innerHTML = '';
+                rightColumn.innerHTML = '';
+                
+                let leftItems = [];
+                let rightItems = [];
+
+                if (state.currentRoundType === 'coteaux') {
+                    leftItems = data.map(item => ({ text: `${item.producer} (${item.village})`, value: item.cuvee }));
+                    rightItems = data.map(item => ({ text: `${item.cuvee} (${item.variety})`, value: item.cuvee }));
+                } else if (state.currentRoundType === 'grandCru' || state.currentRoundType === 'premierCru') {
+                    leftItems = data.map(item => ({ text: item.village, value: item.region }));
+                    rightItems = data.map(item => ({ text: item.region, value: item.region }));
+                }
+                else { // prestige and singleVineyard
+                    leftItems = data.map(item => ({ text: item.producer, value: item.cuvee }));
+                    rightItems = data.map(item => ({ text: item.cuvee, value: item.cuvee }));
+                }
+
+                shuffleArray(leftItems).forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card p-4 bg-white rounded-lg shadow-sm text-center';
+                    card.textContent = item.text;
+                    card.dataset.type = 'left';
+                    card.dataset.value = item.value;
+                    card.addEventListener('click', handleCardClick);
+                    leftColumn.appendChild(card);
+                });
+
+                shuffleArray(rightItems).forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card p-4 bg-white rounded-lg shadow-sm text-center';
+                    card.textContent = item.text;
+                    card.dataset.type = 'right';
+                    card.dataset.value = item.value;
+                    card.addEventListener('click', handleCardClick);
+                    rightColumn.appendChild(card);
+                });
+            }
+
+            function handleCardClick(e) {
+                if (state.isChecking || e.target.classList.contains('matched')) return;
+
+                const selectedCard = e.target;
+                const type = selectedCard.dataset.type;
+
+                if (type === 'left') {
+                    if (state.selectedLeft) state.selectedLeft.classList.remove('selected');
+                    state.selectedLeft = selectedCard;
+                } else { // right
+                    if (state.selectedRight) state.selectedRight.classList.remove('selected');
+                    state.selectedRight = selectedCard;
+                }
+                selectedCard.classList.add('selected');
+
+                if (state.selectedLeft && state.selectedRight) {
+                    checkMatch();
+                }
+            }
+
+            function checkMatch() {
+                state.isChecking = true;
+                const leftValue = state.selectedLeft.dataset.value;
+                const rightValue = state.selectedRight.dataset.value;
+
+                if (leftValue === rightValue) {
+                    // --- Correct Match Logic ---
+                    const isBonus = state.currentRoundType !== 'prestige';
+                    const pointsEarned = isBonus ? 2 : 1;
+                    
+                    state.score += pointsEarned;
+                    state.matchedPairs++;
+                    showMessage('Correct!', pointsEarned);
+
+                    state.selectedLeft.classList.add('matched');
+                    state.selectedRight.classList.add('matched');
+                    state.selectedLeft.classList.remove('selected');
+                    state.selectedRight.classList.remove('selected');
+
+                    state.selectedLeft = null;
+                    state.selectedRight = null;
+                    state.isChecking = false;
+                    
+                    if (state.matchedPairs === state.matchesPerRound) {
+                        handleRoundEnd();
+                    }
+                } else {
+                    // --- Incorrect Match Logic ---
+                    const isBonus = state.currentRoundType !== 'prestige';
+                    const pointsDeducted = isBonus ? -2 : -1;
+                    state.score += pointsDeducted;
+                    showMessage('Try Again!', pointsDeducted);
+
+                    state.selectedLeft.classList.add('incorrect');
+                    state.selectedRight.classList.add('incorrect');
+                    
+                    setTimeout(() => {
+                        state.selectedLeft.classList.remove('selected', 'incorrect');
+                        state.selectedRight.classList.remove('selected', 'incorrect');
+                        state.selectedLeft = null;
+                        state.selectedRight = null;
+                        state.isChecking = false;
+                        updateStats();
+                    }, 800);
+                }
+                updateStats();
+            }
+            
+            function handleRoundEnd() {
+                setTimeout(() => {
+                    if (state.round >= state.totalRounds) {
+                        const percentage = state.maxScorePossible > 0 ? Math.round((state.score / state.maxScorePossible) * 100) : 0;
+                        let message = "";
+                        if (percentage >= 90) {
+                            message = "You're a pro!";
+                        } else if (percentage >= 80) {
+                            message = "Awesome work, keep it up!";
+                        } else if (percentage >= 70) {
+                            message = "Great job, keep going.";
+                        } else if (percentage >= 60) {
+                            message = "You're starting to get it!";
+                        } else {
+                            message = "Keep working, you can do it!";
+                        }
+                        
+                        finalScoreEl.textContent = state.score;
+                        maxScoreEl.textContent = state.maxScorePossible;
+                        finalPercentageEl.textContent = `${percentage}%`;
+                        finalMessageEl.textContent = message;
+
+                        finalScoreModal.classList.remove('hidden');
+                        setTimeout(() => finalModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+
+                    } else {
+                        showMessage('Round Complete!', null);
+                        gameControls.classList.remove('hidden');
+                    }
+                }, 500);
+            }
+
+            function updateStats() {
+                state.score = Math.max(0, state.score);
+                scoreEl.textContent = state.score;
+                roundEl.textContent = `${state.round} / ${state.totalRounds}`;
+                matchesCountEl.textContent = `${state.matchedPairs} / ${state.matchesPerRound}`;
+            }
+
+            function resetGame() {
+                state.score = 0;
+                state.round = 1;
+                state.maxScorePossible = 0;
+                finalScoreModal.classList.add('hidden');
+                finalModalContent.classList.add('scale-95', 'opacity-0');
+                startRound();
+            }
+
+            // --- EVENT LISTENERS ---
+            nextRoundBtn.addEventListener('click', () => {
+                state.round++;
+                startRound();
+            });
+
+            playAgainBtn.addEventListener('click', resetGame);
+            
+            startBonusBtn.addEventListener('click', () => {
+                modalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    bonusModal.classList.add('hidden');
+                    prepareAndRenderRound();
+                }, 200);
+            });
+
+            // --- INITIALIZE GAME ---
+            startRound();
+        });
+    </script>
+</body>
+</html>
